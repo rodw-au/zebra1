@@ -565,7 +565,11 @@ def setup_window():
 
 
 root = Tk()
-readConfig()
+try:
+    readConfig()
+except Exception as e:
+    tkinter.messagebox.showerror("Error", f"Failed to read config: {e}", parent=window)
+
 #printlabel(g_zpl)
 filename = StringVar() 
 csvname = StringVar() 
