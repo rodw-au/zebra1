@@ -1,0 +1,6 @@
+# Example .gitignore content
+   /bin/*
+   /lib/*
+   /lib64/*
+   /env/*
+    *.old
