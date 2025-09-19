@@ -70,6 +70,7 @@ def clearglobals():
   g_defaultprice = ''
   g_promotionprice = ''
   g_misc10 = ''
+  g_location = ''
 
 def printglobals():
   global g_sku
@@ -288,14 +289,17 @@ def printCSV():
   global g_quantity
   global g_csvname
   global g_shippingweight
+  global g_location
   clearglobals()
   ctr = 0;
   label = ''
   g_quantity = ""  # not used
-  csvname = g_csvname.decode('unicode_escape')
-  with open(csvname,'rb') as csvfile:
+  csvname = g_csvname
+  with open(csvname, 'r', encoding='utf-8') as csvfile:	  
     reader = csv.reader(csvfile,delimiter = ",")
+    print(reader)
     for row in reader:
+      print("row = ", row)
       if(ctr):
         if(len( row[0]) > 100):        
           g_name = row[0][:100]
@@ -306,14 +310,14 @@ def printCSV():
         g_misc10    = row[3]
         g_warehouse = row[4]
         g_sku       = row[5]
-        label += ((FormatLabel(g_zpl, g_sku, g_name, g_misc10, g_upc, g_defaultprice, g_quantity, g_shippingweight, g_warehouse)) + "\n")
+        label += ((FormatLabel(g_zpl, g_sku, g_name, g_misc10, g_upc, g_defaultprice, g_quantity, g_shippingweight, g_warehouse,g_location)) + "\n")
       ctr = ctr + 1
   if g_uselpr:
     printlprlabel(label)
   else:
     printlabel(label)  # print the whole batch in one call
 
-def FormatLabel(label, sku, name, misc10, upc, price, quantity, weight, warehouse):
+def FormatLabel(label, sku, name, misc10, upc, price, quantity, weight, warehouse, location):
   lbl1 = label.replace('[SKU]',  printable(sku))
   lbl2 = lbl1.replace('[NAME]',  printable(name))
   lbl3 = lbl2.replace('[MISC10]', printable(misc10))
@@ -322,7 +326,8 @@ def FormatLabel(label, sku, name, misc10, upc, price, quantity, weight, warehous
   lbl6 = lbl5.replace('[QTY]',   printable(quantity))
   lbl7 = lbl6.replace('[WEIGHT]', printable(weight))
   lbl8 = lbl7.replace('[WAREHOUSE]', printable(warehouse))
-  return lbl8
+  lbl9 = lbl8.replace('[LOCATION]', printable(location))
+  return lbl9
 
 def printlabel(lblfmt):
   global g_printer
@@ -361,6 +366,7 @@ def printApiLabels(sku,qty):
   global g_shippingweight
   global g_warehouse
   global g_zpl
+  global g_location
   global headers
   global g_apikey
   global payload
@@ -375,7 +381,7 @@ def printApiLabels(sku,qty):
     print ("ERRROR: No SKU")
     tkMessageBox.showwarning("Warning","SKU not found")
     return
-  lbl = FormatLabel(g_zpl, g_sku, g_name, g_misc10, g_upc, g_defaultprice, g_quantity, g_shippingweight, g_warehouse)
+  lbl = FormatLabel(g_zpl, g_sku, g_name, g_misc10, g_upc, g_defaultprice, g_quantity, g_shippingweight, g_warehouse,g_location)
   print (lbl)
   printglobals()
   if g_uselpr:
@@ -562,8 +568,15 @@ def setup_window():
   lbl_uselprhlp.grid(row=6,column=1,sticky = W, padx=(40, 40))
   
   btn_close.grid(columnspan=2)
-
-
+"""
+  if platform.system() == "Linux":
+    window.focus_force()
+    window.lift()
+    window.attributes('-topmost', True)
+    window.attributes('-topmost', False)
+    window.update()
+    window.deiconify()
+"""
 root = Tk()
 try:
     readConfig()
@@ -605,5 +618,6 @@ status = Label(root,textvariable=g_printer,bd=1,relief=SUNKEN, anchor=W)
 
 status.pack(side=BOTTOM,fill=X)
 p.pack(side=BOTTOM)
+
 root.protocol("WM_DELETE_WINDOW", on_closing)
 root.mainloop()
