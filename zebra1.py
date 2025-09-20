@@ -147,6 +147,7 @@ def parsexml(tpayload, sku):
   global g_warehouse
   global g_misc10
   global g_location
+  global g_quantity
 
 
   response = requests.request("POST", g_apiurl, data=tpayload, headers=headers)
@@ -297,45 +298,48 @@ def printCSV():
   global g_location
   global g_quantity
   clearglobals()
-  ctr = 0;
   label = ''
   csvname = g_csvname
   if not csvname:
     tkinter.messagebox.showwarning("Warning", "No CSV file selected", parent=root)
     return
+  # Check ZPL template for required placeholders
+  required_placeholders = ['[SKU]', '[NAME]', '[MISC10]', '[UPC]', '[PRICE]', '[QUANTITY]', '[WEIGHT]', '[WAREHOUSE]', '[LOCATION]','[QTY]']
+  # missing_placeholders = [ph for ph in required_placeholders if ph not in g_zpl]
+  # if missing_placeholders:
+  # tkinter.messagebox.showerror(
+  # "Error",
+  # f"ZPL template missing required placeholders: {', '.join(missing_placeholders)}. Please update {g_filename}.",
+  # parent=root
+  # )
+  # return
   column_mapping = {
     "NAME": "g_name",
     "UPC": "g_upc",
     "PRICE": "g_defaultprice",
-    "MISC10": "g_misc10",      
+    "MISC10": "g_misc10",
     "WAREHOUSE": "g_warehouse",
     "LOCATION": "g_location",
     "QUANTITY": "g_quantity",
-    "SKU": "g_sku"			
+    "SKU": "g_sku"
   }
-  label = ""
-  with open(csvname, 'r', encoding='utf-8') as csvfile:	  
-    reader = csv.reader(csvfile,delimiter = ",")
-    print(reader)
-    headers = next(reader, None)
-    if headers is None:
-      tkinter.messagebox.showerror("Error", "CSV file is empty", parent=root)
-      return
-    headers = [h.upper() for h in headers]  # Convert headers to uppercase
-    print(headers)
-    # Map headers to indices
-    header_indices = {}
-    found_columns = []
-    for col_name in column_mapping:
-      try:
-        header_indices[col_name] = headers.index(col_name)
-        print( header_indices[col_name])
-        found_columns.append(col_name)
-      except ValueError:
-        header_indices[col_name] = None
+  try:
+    with open(csvname, 'r', encoding='utf-8') as csvfile:
+      reader = csv.reader(csvfile, delimiter=',')
+      headers = next(reader, None)
+      if headers is None:
+        tkinter.messagebox.showerror("Error", "CSV file is empty", parent=root)
+        return
+      headers = [h.upper() for h in headers]
+      header_indices = {}
+      found_columns = []
+      for col_name in column_mapping:
 
-      # Warn if no expected columns are found
-      print(found_columns)
+        try:
+          header_indices[col_name] = headers.index(col_name)
+          found_columns.append(col_name)
+        except ValueError:
+          header_indices[col_name] = None 
       if not found_columns:
         tkinter.messagebox.showerror(
           "Error",
@@ -343,35 +347,52 @@ def printCSV():
           parent=root
         )
         return
-    for row in reader:
-      print("row = ", row)
-      clearglobals()
-      if header_indices["NAME"] is not None and len(row) > header_indices["NAME"]:
-        g_name = row[header_indices["NAME"]][:100] if len(row[header_indices["NAME"]]) > 100 else row[header_indices["NAME"]]
-      if header_indices["UPC"] is not None and len(row) > header_indices["UPC"]:
-        g_upc = row[header_indices["UPC"]]
-      if header_indices["PRICE"] is not None and len(row) > header_indices["PRICE"]:
-        try:
-          g_defaultprice = formatprice(row[header_indices["PRICE"]])
-        except ValueError:
-          g_defaultprice = ""
-          tkinter.messagebox.showwarning("Warning", f"Invalid price in row: {row}", parent=root)
-      if header_indices["MISC10"] is not None and len(row) > header_indices["MISC10"]:
-        g_misc10 = row[header_indices["MISC10"]]
-      if header_indices["WAREHOUSE"] is not None and len(row) > header_indices["WAREHOUSE"]:
-        g_warehouse = row[header_indices["WAREHOUSE"]]
-      if header_indices["SKU"] is not None and len(row) > header_indices["SKU"]:
-        g_sku = row[header_indices["SKU"]]
-      if header_indices["LOCATION"] is not None and len(row) > header_indices["LOCATION"]:
-        g_sku = row[header_indices["LOCATION"]]
-      if header_indices["QUANTITY"] is not None and len(row) > header_indices["QUANTITY"]:
-        g_sku = row[header_indices["QUANTITY"]]              
-      label += ((FormatLabel(g_zpl, g_sku, g_name, g_misc10, g_upc, g_defaultprice, g_quantity, g_shippingweight, g_warehouse,g_location)) + "\n")	
-  exit()
-  if g_uselpr:
-    printlprlabel(label)
-  else:
-    printlabel(label)  # print the whole batch in one call
+      # Check that all CSV headers exist in the ZPL 
+      missing_zpl_fields = [col for col in found_columns if f'[{col}]' not in g_zpl]
+      if missing_zpl_fields:
+        tkinter.messagebox.showerror(
+          "Error"
+           f"CSV columns not found in ZPL template: {', '.join(missing_zpl_fields)}. Please update {g_filename}.",
+           parent=root
+        )
+        return
+      for row in reader:
+         if not row:  # Skip empty rows
+           print("Skipping empty row")
+           continue
+         clearglobals()
+         if header_indices["NAME"] is not None and len(row) > header_indices["NAME"]:
+           g_name = row[header_indices["NAME"]][:100] if len(row[header_indices["NAME"]]) > 100 else row[header_indices["NAME"]]
+         if header_indices["UPC"] is not None and len(row) > header_indices["UPC"]:
+           g_upc = row[header_indices["UPC"]]
+         if header_indices["PRICE"] is not None and len(row) > header_indices["PRICE"]:
+           try:
+             g_defaultprice = formatprice(row[header_indices["PRICE"]])
+           except ValueError:
+             g_defaultprice = ""
+             tkinter.messagebox.showwarning("Warning", f"Invalid price in row: {row}", parent=root)
+         if header_indices["MISC10"] is not None and len(row) > header_indices["MISC10"]:
+           g_misc10 = row[header_indices["MISC10"]]
+         if header_indices["WAREHOUSE"] is not None and len(row) > header_indices["WAREHOUSE"]:
+           g_warehouse = row[header_indices["WAREHOUSE"]]
+         if header_indices["SKU"] is not None and len(row) > header_indices["SKU"]:
+           g_sku = row[header_indices["SKU"]]
+         if header_indices["LOCATION"] is not None and len(row) > header_indices["LOCATION"]:
+           g_location = row[header_indices["LOCATION"]]
+         if header_indices["QUANTITY"] is not None and len(row) > header_indices["QUANTITY"]:
+           g_quantity = row[header_indices["QUANTITY"]]
+         label += (FormatLabel(g_zpl, g_sku, g_name, g_misc10, g_upc, g_defaultprice,
+                  g_quantity, g_shippingweight, g_warehouse, g_location) + "\n")
+         if not label:  # Check if any labels were generated
+           tkinter.messagebox.showwarning("Warning", "No valid data rows processed in CSV", parent=root)
+         else:
+           tkinter.messagebox.showinfo("Success", "CSV processed successfully", parent=root)
+           if g_uselpr:
+             printlprlabel(label)
+           else:
+             printlabel(label)
+  except Exception as e:
+      tkinter.messagebox.showerror("Error", f"Failed to process CSV: {e}", parent=root)
 
 def FormatLabel(label, sku, name, misc10, upc, price, quantity, weight, warehouse, location):
   lbl1 = label.replace('[SKU]',  printable(sku))

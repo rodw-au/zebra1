@@ -224,6 +224,7 @@ def printCSV():
                     found_columns.append(col_name)
                 except ValueError:
                     header_indices[col_name] = None
+            print("columns = ",found_columns)
             if not found_columns:
                 tkinter.messagebox.showerror(
                     "Error",
@@ -233,6 +234,7 @@ def printCSV():
                 return
             # Check that all CSV headers exist in the ZPL 
             missing_zpl_fields = [col for col in found_columns if f'[{col}]' not in g_zpl]
+            print("Missing Cols ", missing_zpl_fields)
             if missing_zpl_fields:
                 tkinter.messagebox.showerror(
                     "Error",
