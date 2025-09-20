@@ -56,6 +56,8 @@ def clearglobals():
   global g_defaultprice
   global g_promotionprice
   global g_misc10
+  global g_location
+  global g_quantity
 
   g_sku = ''
   g_name = ''
@@ -144,6 +146,7 @@ def parsexml(tpayload, sku):
   global g_apiurl
   global g_warehouse
   global g_misc10
+  global g_location
 
 
   response = requests.request("POST", g_apiurl, data=tpayload, headers=headers)
@@ -279,39 +282,92 @@ def writeConfig():
     
 def printCSV():
   #Name,UPC/EAN,Price (B),Store Location,Pick Zone,SKU*
+  global root
   global g_zpl
   global g_sku
   global g_name
   global g_warehouse
   global g_misc10
   global g_upc
+  global g_upc
   global g_defaultprice
   global g_quantity
   global g_csvname
   global g_shippingweight
   global g_location
+  global g_quantity
   clearglobals()
   ctr = 0;
   label = ''
-  g_quantity = ""  # not used
   csvname = g_csvname
+  if not csvname:
+    tkinter.messagebox.showwarning("Warning", "No CSV file selected", parent=root)
+    return
+  column_mapping = {
+    "NAME": "g_name",
+    "UPC": "g_upc",
+    "PRICE": "g_defaultprice",
+    "MISC10": "g_misc10",      
+    "WAREHOUSE": "g_warehouse",
+    "LOCATION": "g_location",
+    "QUANTITY": "g_quantity",
+    "SKU": "g_sku"			
+  }
+  label = ""
   with open(csvname, 'r', encoding='utf-8') as csvfile:	  
     reader = csv.reader(csvfile,delimiter = ",")
     print(reader)
+    headers = next(reader, None)
+    if headers is None:
+      tkinter.messagebox.showerror("Error", "CSV file is empty", parent=root)
+      return
+    headers = [h.upper() for h in headers]  # Convert headers to uppercase
+    print(headers)
+    # Map headers to indices
+    header_indices = {}
+    found_columns = []
+    for col_name in column_mapping:
+      try:
+        header_indices[col_name] = headers.index(col_name)
+        print( header_indices[col_name])
+        found_columns.append(col_name)
+      except ValueError:
+        header_indices[col_name] = None
+
+      # Warn if no expected columns are found
+      print(found_columns)
+      if not found_columns:
+        tkinter.messagebox.showerror(
+          "Error",
+          f"No valid columns found in CSV. Expected: {', '.join(column_mapping.keys())}",
+          parent=root
+        )
+        return
     for row in reader:
       print("row = ", row)
-      if(ctr):
-        if(len( row[0]) > 100):        
-          g_name = row[0][:100]
-        else:
-          g_name = row[0]
-        g_upc = row[1]
-        g_defaultprice = formatprice(row[2])     
-        g_misc10    = row[3]
-        g_warehouse = row[4]
-        g_sku       = row[5]
-        label += ((FormatLabel(g_zpl, g_sku, g_name, g_misc10, g_upc, g_defaultprice, g_quantity, g_shippingweight, g_warehouse,g_location)) + "\n")
-      ctr = ctr + 1
+      clearglobals()
+      if header_indices["NAME"] is not None and len(row) > header_indices["NAME"]:
+        g_name = row[header_indices["NAME"]][:100] if len(row[header_indices["NAME"]]) > 100 else row[header_indices["NAME"]]
+      if header_indices["UPC"] is not None and len(row) > header_indices["UPC"]:
+        g_upc = row[header_indices["UPC"]]
+      if header_indices["PRICE"] is not None and len(row) > header_indices["PRICE"]:
+        try:
+          g_defaultprice = formatprice(row[header_indices["PRICE"]])
+        except ValueError:
+          g_defaultprice = ""
+          tkinter.messagebox.showwarning("Warning", f"Invalid price in row: {row}", parent=root)
+      if header_indices["MISC10"] is not None and len(row) > header_indices["MISC10"]:
+        g_misc10 = row[header_indices["MISC10"]]
+      if header_indices["WAREHOUSE"] is not None and len(row) > header_indices["WAREHOUSE"]:
+        g_warehouse = row[header_indices["WAREHOUSE"]]
+      if header_indices["SKU"] is not None and len(row) > header_indices["SKU"]:
+        g_sku = row[header_indices["SKU"]]
+      if header_indices["LOCATION"] is not None and len(row) > header_indices["LOCATION"]:
+        g_sku = row[header_indices["LOCATION"]]
+      if header_indices["QUANTITY"] is not None and len(row) > header_indices["QUANTITY"]:
+        g_sku = row[header_indices["QUANTITY"]]              
+      label += ((FormatLabel(g_zpl, g_sku, g_name, g_misc10, g_upc, g_defaultprice, g_quantity, g_shippingweight, g_warehouse,g_location)) + "\n")	
+  exit()
   if g_uselpr:
     printlprlabel(label)
   else:
@@ -501,6 +557,7 @@ def setup_window():
   global g_lpripaddr
   global g_lprport
   global g_uselpr
+  global root
   
   options=[]
   Name = "none"
@@ -511,7 +568,7 @@ def setup_window():
     for printer in printers:
       pos = printer[1].find(',')
       options.append(printer[1][:pos])
-  window = Toplevel(root)
+  window = tkinter.Toplevel(root)
   #window.attributes('-topmost', True)
   lbl_prn = Label(window, text="Choose Printer:")
   lbl_zpl = Label(window, text="Choose Label:")
