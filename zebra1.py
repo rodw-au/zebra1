@@ -2,7 +2,7 @@ import os, sys
 import platform
 import ctypes
 from ctypes.wintypes import BYTE, DWORD, LPCWSTR
-#import win32print
+import win32print
 import csv
 import configparser
 from configparser import ConfigParser
@@ -12,6 +12,7 @@ from xml.dom import minidom
 from tkinter import *
 import tkinter.filedialog
 import tkinter.messagebox
+import logging
 
 import string
 
@@ -279,7 +280,7 @@ def writeConfig():
     with open('zebra1.ini', 'wb') as configfile:
       config.write(configfile)  
   except:
-    tkMessageBox.showwarning("Warning","Cannot write to INI file")
+    print ("Warning Cannot write to INI file")
     
 def printCSV():
   #Name,UPC/EAN,Price (B),Store Location,Pick Zone,SKU*
@@ -297,6 +298,8 @@ def printCSV():
   global g_shippingweight
   global g_location
   global g_quantity
+  islpr = 0
+  
   clearglobals()
   label = ''
   csvname = g_csvname
@@ -305,14 +308,6 @@ def printCSV():
     return
   # Check ZPL template for required placeholders
   required_placeholders = ['[SKU]', '[NAME]', '[MISC10]', '[UPC]', '[PRICE]', '[QUANTITY]', '[WEIGHT]', '[WAREHOUSE]', '[LOCATION]','[QTY]']
-  # missing_placeholders = [ph for ph in required_placeholders if ph not in g_zpl]
-  # if missing_placeholders:
-  # tkinter.messagebox.showerror(
-  # "Error",
-  # f"ZPL template missing required placeholders: {', '.join(missing_placeholders)}. Please update {g_filename}.",
-  # parent=root
-  # )
-  # return
   column_mapping = {
     "NAME": "g_name",
     "UPC": "g_upc",
@@ -334,7 +329,6 @@ def printCSV():
       header_indices = {}
       found_columns = []
       for col_name in column_mapping:
-
         try:
           header_indices[col_name] = headers.index(col_name)
           found_columns.append(col_name)
@@ -357,42 +351,46 @@ def printCSV():
         )
         return
       for row in reader:
-         if not row:  # Skip empty rows
-           print("Skipping empty row")
-           continue
-         clearglobals()
-         if header_indices["NAME"] is not None and len(row) > header_indices["NAME"]:
-           g_name = row[header_indices["NAME"]][:100] if len(row[header_indices["NAME"]]) > 100 else row[header_indices["NAME"]]
-         if header_indices["UPC"] is not None and len(row) > header_indices["UPC"]:
-           g_upc = row[header_indices["UPC"]]
-         if header_indices["PRICE"] is not None and len(row) > header_indices["PRICE"]:
-           try:
-             g_defaultprice = formatprice(row[header_indices["PRICE"]])
-           except ValueError:
-             g_defaultprice = ""
-             tkinter.messagebox.showwarning("Warning", f"Invalid price in row: {row}", parent=root)
-         if header_indices["MISC10"] is not None and len(row) > header_indices["MISC10"]:
-           g_misc10 = row[header_indices["MISC10"]]
-         if header_indices["WAREHOUSE"] is not None and len(row) > header_indices["WAREHOUSE"]:
-           g_warehouse = row[header_indices["WAREHOUSE"]]
-         if header_indices["SKU"] is not None and len(row) > header_indices["SKU"]:
-           g_sku = row[header_indices["SKU"]]
-         if header_indices["LOCATION"] is not None and len(row) > header_indices["LOCATION"]:
-           g_location = row[header_indices["LOCATION"]]
-         if header_indices["QUANTITY"] is not None and len(row) > header_indices["QUANTITY"]:
-           g_quantity = row[header_indices["QUANTITY"]]
-         label += (FormatLabel(g_zpl, g_sku, g_name, g_misc10, g_upc, g_defaultprice,
-                  g_quantity, g_shippingweight, g_warehouse, g_location) + "\n")
-         if not label:  # Check if any labels were generated
-           tkinter.messagebox.showwarning("Warning", "No valid data rows processed in CSV", parent=root)
-         else:
-           tkinter.messagebox.showinfo("Success", "CSV processed successfully", parent=root)
-           if g_uselpr:
-             printlprlabel(label)
-           else:
-             printlabel(label)
+        if not row:  # Skip empty rows
+          print("Skipping empty row")
+          continue
+        clearglobals()
+        if header_indices["NAME"] is not None and len(row) > header_indices["NAME"]:
+          g_name = row[header_indices["NAME"]][:100] if len(row[header_indices["NAME"]]) > 100 else row[header_indices["NAME"]]
+        if header_indices["UPC"] is not None and len(row) > header_indices["UPC"]:
+          g_upc = row[header_indices["UPC"]]
+        if header_indices["PRICE"] is not None and len(row) > header_indices["PRICE"]:
+          try:
+            g_defaultprice = formatprice(row[header_indices["PRICE"]])
+          except ValueError:
+            g_defaultprice = ""
+            tkinter.messagebox.showwarning("Warning", f"Invalid price in row: {row}", parent=root)
+        if header_indices["MISC10"] is not None and len(row) > header_indices["MISC10"]:
+          g_misc10 = row[header_indices["MISC10"]]
+        if header_indices["WAREHOUSE"] is not None and len(row) > header_indices["WAREHOUSE"]:
+          g_warehouse = row[header_indices["WAREHOUSE"]]
+        if header_indices["SKU"] is not None and len(row) > header_indices["SKU"]:
+          g_sku = row[header_indices["SKU"]]
+        if header_indices["LOCATION"] is not None and len(row) > header_indices["LOCATION"]:
+          g_location = row[header_indices["LOCATION"]]
+        if header_indices["QUANTITY"] is not None and len(row) > header_indices["QUANTITY"]:
+          g_quantity = row[header_indices["QUANTITY"]]
+        label += (FormatLabel(g_zpl, g_sku, g_name, g_misc10, g_upc, g_defaultprice,
+                 g_quantity, g_shippingweight, g_warehouse, g_location) + "\n")
+      if not label:  # Check if any labels were generated
+        tkinter.messagebox.showwarning("Warning", "No valid data rows processed in CSV", parent=root)
+        return
+      print("Success, CSV processed with no errors")
+      islpr = int(g_uselpr)
+      #print("g_uselpr = ", g_uselpr, type(g_uselpr),"islpr = ", islpr, type(islpr))
+      if islpr:
+        #print("About to call printlprlabel()")
+        printlprlabel(label)
+      else:
+        #print("About to call printlabel()")
+        printlabel(label)
   except Exception as e:
-      tkinter.messagebox.showerror("Error", f"Failed to process CSV: {e}", parent=root)
+    tkinter.messagebox.showerror("Error", f"Failed to process CSV: {e}", parent=root)
 
 def FormatLabel(label, sku, name, misc10, upc, price, quantity, weight, warehouse, location):
   lbl1 = label.replace('[SKU]',  printable(sku))
@@ -411,12 +409,17 @@ def printlabel(lblfmt):
   global g_csv
   printer_name = g_printer
   if platform.system() == "Windows":	
+    print("About to print to ",printer_name)
     p = win32print.OpenPrinter (printer_name)
+    print("Printer ",printer_name, " opened sucessfully")
     try: 
+      print("About to StartDocPrinter for ",printer_name)
       job = win32print.StartDocPrinter (p, 1, ("Neto Product Labels", None, "RAW"))
       try:
+        print("About to StartPagePrinter for ",printer_name)
         win32print.StartPagePrinter (p)
-        win32print.WritePrinter (p, lblfmt)
+        print("About to WritePrinter for ",printer_name)
+        win32print.WritePrinter (p, lblfmt.encode('utf-8'))
         win32print.EndPagePrinter (p)
       finally:
         win32print.EndDocPrinter(p)      
@@ -429,7 +432,7 @@ def printlprlabel(lblfmt):
   
   s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
   s.connect((g_lpripaddr, int(g_lprport)))
-  s.send(str(lblfmt))
+  s.send(lblfmt.encode('utf_8'))
   s.close()
     
   
@@ -564,102 +567,176 @@ def callback(sv):
   global g_printer
   g_printer = sv.get()
 
+import configparser
+
+def save_config():
+  global g_printer, g_filename, g_apiurl, g_apikey, g_lpripaddr, g_lprport, g_uselpr, g_csvname
+  print ('csv = ',g_csvname)
+  config = configparser.ConfigParser()
+  config['PRINTER'] = {
+      'queue': g_printer if g_printer else '',
+      'label': g_filename if g_filename else '',
+      'lastcsv': g_csvname if g_csvname else ''
+  }
+  config['API'] = {
+      'URL': g_apiurl if g_apiurl else '',
+      'KEY': g_apikey if g_apikey else ''
+  }
+  config['LPR'] = {
+      'ipaddr': g_lpripaddr if g_lpripaddr else '',
+      'port': g_lprport if g_lprport else '',
+      'uselpr': str(g_uselpr)
+  }
+  try:
+    with open('zebra1.ini', 'w') as configfile:
+      config.write(configfile)
+      logging.debug("Configuration saved to zebra1.ini")
+  except Exception as e:
+    logging.error(f"Error saving configuration to zebra1.ini: {e}")
+    tkinter.messagebox.showerror("Error", f"Failed to save configuration: {e}", parent=root)
  
 def on_closing():
   #writeConfig()
   root.destroy()
 
+def callback_var(var, global_name, window, *args):
+  global g_printer, g_filename, g_apiurl, g_apikey, g_lpripaddr, g_lprport, g_uselpr
+  value = var.get()
+  globals()[global_name] = value
+  logging.debug(f"Updated {global_name} to {value}")
+  window.focus_force()  # Restore focus to Setup window after update
   
 def setup_window():
-  global g_printer
-  global g_filename
-  global g_apiurl
-  global g_apikey
-  global g_lpripaddr
-  global g_lprport
-  global g_uselpr
-  global root
-  
-  options=[]
+  global g_printer, g_filename, g_apiurl, g_apikey, g_lpripaddr, g_lprport, g_uselpr, root
+  options = []
   Name = "none"
-  if platform.system() == "Windows": 
-    if(len(g_printer) == 0):
-      g_printer = win32print.GetDefaultPrinter()
-    printers = win32print.EnumPrinters(2,Name,1)
-    for printer in printers:
-      pos = printer[1].find(',')
-      options.append(printer[1][:pos])
-  window = tkinter.Toplevel(root)
-  #window.attributes('-topmost', True)
-  lbl_prn = Label(window, text="Choose Printer:")
-  lbl_zpl = Label(window, text="Choose Label:")
-  lbl_fname = Label(window, textvariable=g_filename)
-  lbl_url = Label(window, text="Enter API URL:")
-  lbl_key = Label(window, text="Enter API Key:")
-  lbl_ipaddr = Label(window, text="Enter LPR IP Address:")
-  lbl_port = Label(window, text="Enter LPR Port:")
-  lbl_uselpr  = Label(window, text="Use LPR:")
-  lbl_uselprhlp  = Label(window, text="(0 = no, 1 = yes):")
-  tkvar = StringVar(window)   
-  keyvar = StringVar(window)   
-  urlvar = StringVar(window)
-  filevar = StringVar(window)
-  ipaddrvar = StringVar(window)
-  portvar = StringVar(window)
-  uselprvar = StringVar(window)
-  tkvar.set(g_printer) # set the default option
-  keyvar.set(g_apikey)
-  urlvar.set(g_apiurl)
-  filevar.set(g_filename)
-  ipaddrvar.set(g_lpripaddr)
-  portvar.set(g_lprport)
-  uselprvar.set(g_uselpr)
-  tkvar.trace('w', lambda *args: callback(tkvar))
-  if platform.system() == "Windows":
-    sel_printer = OptionMenu(window, tkvar, *options)    
-  btn_close = Button(window, text="Close", command=window.destroy)
-  #btn_close.bind('<Return>',click)
-  entry_file = Entry(window,text=filevar,width=60 )
-  entry_url = Entry(window,text=urlvar,width=50,show="*")
-  entry_key = Entry(window,text=keyvar,width=50, show="*") 
-  entry_ipaddr = Entry(window,text=ipaddrvar,width=16)
-  entry_port = Entry(window,text=portvar,width=5)
-  entry_uselpr = Entry(window,text=uselprvar,width=5)
-  btn_browse = Button(window, text="Browse", command=lambda: findFile(filevar),)
-  lbl_prn.grid(row = 0,sticky=E)
-  if platform.system() == "Windows":
-    sel_printer.grid(row=0,column=1,sticky=W)
-  lbl_zpl.grid(row = 1,sticky=E)
-  entry_file.grid(row=1,column=1)
-  lbl_fname.grid(row=1,column=1)
-  btn_browse.grid(row=1,column=1,sticky=E)
-  lbl_url.grid(row=2,sticky=E)
-  entry_url.grid(row=2,column=1,sticky=W)
-  lbl_key.grid(row=3,sticky=E)
-  entry_key.grid(row=3,column=1,sticky=W)
-  lbl_ipaddr.grid(row=4, sticky=E)
-  entry_ipaddr.grid(row=4,column = 1,sticky=W)
-  lbl_port.grid(row=5, sticky=E)
-  entry_port.grid(row=5,column = 1,sticky=W)
-  lbl_uselpr.grid(row=6, sticky=E)
-  entry_uselpr.grid(row=6,column = 1,sticky=W)
-  lbl_uselprhlp.grid(row=6,column=1,sticky = W, padx=(40, 40))
   
-  btn_close.grid(columnspan=2)
-"""
-  if platform.system() == "Linux":
-    window.focus_force()
-    window.lift()
-    window.attributes('-topmost', True)
-    window.attributes('-topmost', False)
+  if platform.system() == "Windows":
+    try:
+      if not g_printer:
+        g_printer = win32print.GetDefaultPrinter()
+        logging.debug(f"Default printer set to: {g_printer}")
+      printers = win32print.EnumPrinters(2, Name, 1)
+      for printer in printers:
+        pos = printer[1].find(',')
+        options.append(printer[1][:pos] if pos != -1 else printer[1])
+      logging.debug(f"Found Windows printers: {options}")
+    except Exception as e:
+      logging.error(f"Error enumerating Windows printers: {e}")
+      options = [g_printer] if g_printer else []
+  elif platform.system() == "Linux":
+    try:
+      import cups
+      conn = cups.Connection()
+      printers = conn.getPrinters()
+      options = list(printers.keys())
+      logging.debug(f"Found CUPS printers: {options}")
+    except ImportError as e:
+      logging.error(f"Cannot import pycups: {e}")
+      options = [g_printer] if g_printer else []
+    except cups.IPPError as e:
+      logging.error(f"Error connecting to CUPS: {e}")
+      options = [g_printer] if g_printer else []
+    except Exception as e:
+      logging.error(f"Unexpected error enumerating CUPS printers: {e}")
+      options = [g_printer] if g_printer else []
+  try:
+    window = Toplevel(root)
+    window.title("Setup")
+    window.geometry("600x250")
+    window.resizable(True, True)
+    window.transient(root)  # Make window modal relative to root
+    window.grab_set()  # Grab focus to keep window on top
+    window.columnconfigure(1, weight=1)
+    window.rowconfigure(0, weight=1)
+    window.rowconfigure(1, weight=1)
+    window.rowconfigure(2, weight=1)
+    window.rowconfigure(3, weight=1)
+    window.rowconfigure(4, weight=1)
+    window.rowconfigure(5, weight=1)
+    window.rowconfigure(6, weight=1)
+    window.rowconfigure(7, weight=1)
+    logging.debug("Initialized Toplevel window")
+    lbl_prn = Label(window, text="Choose Printer:")
+    lbl_zpl = Label(window, text="Choose Label:")
+    lbl_fname = Label(window, textvariable=g_filename)
+    lbl_url = Label(window, text="Enter API URL:")
+    lbl_key = Label(window, text="Enter API Key:")
+    lbl_ipaddr = Label(window, text="Enter LPR IP Address:")
+    lbl_port = Label(window, text="Enter LPR Port:")
+    lbl_uselpr = Label(window, text="Use LPR:")
+    lbl_uselprhlp = Label(window, text="(0 = USB/CUPS, 1 = LPR):")
+    logging.debug("Created labels")
+    tkvar = StringVar(window)
+    keyvar = StringVar(window)
+    urlvar = StringVar(window)
+    filevar = StringVar(window)
+    ipaddrvar = StringVar(window)
+    portvar = StringVar(window)
+    uselprvar = StringVar(window)
+    tkvar.set(g_printer)
+    keyvar.set(g_apikey)
+    urlvar.set(g_apiurl)
+    filevar.set(g_filename)
+    ipaddrvar.set(g_lpripaddr)
+    portvar.set(g_lprport)
+    uselprvar.set(g_uselpr)
+    logging.debug("Initialized StringVars")
+    tkvar.trace('w', lambda name, index, mode: callback_var(tkvar, 'g_printer', window))
+    keyvar.trace('w', lambda name, index, mode: callback_var(keyvar, 'g_apikey', window))
+    urlvar.trace('w', lambda name, index, mode: callback_var(urlvar, 'g_apiurl', window))
+    filevar.trace('w', lambda name, index, mode: callback_var(filevar, 'g_filename', window))
+    ipaddrvar.trace('w', lambda name, index, mode: callback_var(ipaddrvar, 'g_lpripaddr', window))
+    portvar.trace('w', lambda name, index, mode: callback_var(portvar, 'g_lprport', window))
+    uselprvar.trace('w', lambda name, index, mode: callback_var(uselprvar, 'g_uselpr', window))
+    #g_uselpr = int(uselpr)
+    logging.debug("Set up trace callbacks")
+    if (platform.system() == "Windows" or platform.system() == "Linux") and options:
+      sel_printer = OptionMenu(window, tkvar, *options)
+      sel_printer.config(width=50)
+      logging.debug(f"Using OptionMenu for {platform.system()} printers")
+    else:
+      sel_printer = Entry(window, textvariable=tkvar, width=50)
+      logging.debug("Using Entry widget for no printers or unsupported platform")
+    btn_close = Button(window, text="Close", command=lambda: [save_config(), window.destroy()])
+    entry_file = Entry(window, textvariable=filevar, width=50)
+    entry_url = Entry(window, textvariable=urlvar, width=50, show="*")
+    entry_key = Entry(window, textvariable=keyvar, width=50, show="*")
+    entry_ipaddr = Entry(window, textvariable=ipaddrvar, width=20)
+    entry_port = Entry(window, textvariable=portvar, width=10)
+    entry_uselpr = Entry(window, textvariable=uselprvar, width=10)
+    btn_browse = Button(window, text="Browse", command=lambda: findFile(filevar))
+    logging.debug("Created input widgets")
+    lbl_prn.grid(row=0, column=0, sticky="e", padx=10, pady=5)
+    sel_printer.grid(row=0, column=1, sticky="w", padx=10, pady=5)
+    lbl_zpl.grid(row=1, column=0, sticky="e", padx=10, pady=5)
+    entry_file.grid(row=1, column=1, sticky="w", padx=10, pady=5)
+    btn_browse.grid(row=1, column=2, sticky="e", padx=10, pady=5)
+    lbl_url.grid(row=2, column=0, sticky="e", padx=10, pady=5)
+    entry_url.grid(row=2, column=1, sticky="w", padx=10, pady=5)
+    lbl_key.grid(row=3, column=0, sticky="e", padx=10, pady=5)
+    entry_key.grid(row=3, column=1, sticky="w", padx=10, pady=5)
+    lbl_ipaddr.grid(row=4, column=0, sticky="e", padx=10, pady=5)
+    entry_ipaddr.grid(row=4, column=1, sticky="w", padx=10, pady=5)
+    lbl_port.grid(row=5, column=0, sticky="e", padx=10, pady=5)
+    entry_port.grid(row=5, column=1, sticky="w", padx=10, pady=5)
+    lbl_uselpr.grid(row=6, column=0, sticky="e", padx=10, pady=5)
+    entry_uselpr.grid(row=6, column=1, sticky="w", padx=10, pady=5)
+    lbl_uselprhlp.grid(row=6, column=1, sticky="w", padx=(60, 10), pady=5)
+    btn_close.grid(row=7, column=0, columnspan=3, pady=15)
+    logging.debug("Gridded all widgets")
+    window.focus_force()  # Ensure window retains focus
     window.update()
-    window.deiconify()
-"""
+    logging.debug("Setup window updated and created successfully")
+  except Exception as e:
+    logging.error(f"Error creating setup window: {e}")
+    tkinter.messagebox.showerror("Error", f"Failed to create setup window: {e}", parent=root)
+    
 root = Tk()
 try:
     readConfig()
 except Exception as e:
-    tkinter.messagebox.showerror("Error", f"Failed to read config: {e}", parent=window)
+    tkinter.messagebox.showerror("Error", f"Failed to read config: {e}", parent=root)
 
 #printlabel(g_zpl)
 filename = StringVar() 
