@@ -20,6 +20,7 @@ g_printer = ""
 g_filename = ""
 g_apiurl=''
 g_apikey = ''
+g_subkey = ''
 g_zpl = ""
 g_csvname= ""
 g_lpripaddr = '192.168.1.47'
@@ -107,10 +108,10 @@ def printable(input):
   return str
 
 headers = {
-    'NETOAPI_ACTION': "GetItem",
-    'NETOAPI_KEY':    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",   
-    'Content-Type':   "application/xml"
-    }
+    'Content-Type': 'application/json',
+    'StarShipIT-Api-Key':g_apiurl,
+    'Ocp-Apim-Subscription-Key':g_subkey
+   }
 
 payload = """  <?xml version=\"1.0\" encoding=\"utf-8\"?>
   <GetItem>
@@ -145,13 +146,32 @@ def parsexml(tpayload, sku):
   global g_promotionprice
   global g_upc
   global g_apiurl
+  global g_key
+  global g_subkey
   global g_warehouse
   global g_misc10
   global g_location
   global g_quantity
 
+  headers = {
+    'Content-Type': 'application/json',
+    'StarShipIT-Api-Key':g_apikey,
+    'Ocp-Apim-Subscription-Key':g_subkey
+  }
+  url = "https://api.starshipit.com/api/products"
+  #payload={}
+  print('Sku ' ,g_sku)
+  print('g_url = ',g_apiurl)
+  payload={'search_term':g_sku, 'page_number':1,'page_size':1,'skip_records':1, 'sort_column':'Sku','sort_direction':'Ascending'}
+  #payload={''search_term'=}
+  print("Payload = ", payload)
+  print('headers = ',headers)
 
-  response = requests.request("POST", g_apiurl, data=tpayload, headers=headers)
+  #response = requests.request("GET", url, headers=headers, data=payload)
+  response = requests.request("GET", g_apiurl, headers=headers,data=payload)
+
+  print('Response = ',response,' , ',response.text, 'Reason = ',response.reason)
+  exit()
   xmldoc = minidom.parseString(response.text)
   itemlist = xmldoc.getElementsByTagName('Item')
   for node in xmldoc.getElementsByTagName('Item'):  # visit every node <Item />
@@ -160,7 +180,7 @@ def parsexml(tpayload, sku):
     except:
       print ("SKU <%s>Not found, aborted"%(sku))
       return
-      #sys.exit(1)                                   # Quit if SKU is not found in neto
+      #sys.exit(1)                                   # Quit if SKU is not found in API
     tsku           =  node.getElementsByTagName('SKU')[0]
     shippingweight =  node.getElementsByTagName('ShippingWeight')[0]
     shippingwidth  =  node.getElementsByTagName('ShippingWidth')[0]
@@ -223,6 +243,7 @@ def readConfig():
   global g_printer
   global g_apiurl
   global g_apikey
+  global g_subkey
   global g_csvname
   global g_uselpr
   global g_lpripaddr
@@ -239,10 +260,11 @@ def readConfig():
   g_csvname = config.get('PRINTER', 'lastcsv')  
   g_apiurl = config.get('API', 'URL')  
   g_apikey = config.get('API', 'KEY')
+  g_subkey = config.get('API', 'SUBKEY')
   g_lpripaddr = config.get('LPR', 'ipaddr')
   g_lprport =  config.get('LPR', 'port') 
   g_uselpr = config.get('LPR', 'uselpr')
-  print(g_filename)
+  print('Zpl File = ',g_filename)
   if g_filename:
     try:
       file = open(g_filename,"r")
@@ -254,13 +276,18 @@ def readConfig():
       tkinter.messagebox.showwarning("Warning",msg)
   else:
     tkinter.messagebox.showwarning("Warning","No Label format selected in Setup")
-
+  print('g_apiurl = ', g_apiurl)
+  print('g_key = ', g_apikey)
+  print('g_subkey = ', g_subkey)
+  print('g_csv = ', g_csvname)
+  
 def writeConfig():
   global g_zpl
   global g_filename
   global g_printer
   global g_apiurl
   global g_apikey
+  global g_subkey
   global g_csvname
   global config
   global g_uselpr
@@ -268,6 +295,7 @@ def writeConfig():
   global g_lprport
   #config.add_section('API')
   config.set('API', 'key', g_apikey)
+  config.set('API', 'subkey', g_subkey)  
   config.set('API', 'url', g_apiurl)
   #config.add_section('PRINTER') 
   config.set('PRINTER', 'lastcsv', g_csvname) 
@@ -414,7 +442,7 @@ def printlabel(lblfmt):
     print("Printer ",printer_name, " opened sucessfully")
     try: 
       print("About to StartDocPrinter for ",printer_name)
-      job = win32print.StartDocPrinter (p, 1, ("Neto Product Labels", None, "RAW"))
+      job = win32print.StartDocPrinter (p, 1, ("Product Labels", None, "RAW"))
       try:
         print("About to StartPagePrinter for ",printer_name)
         win32print.StartPagePrinter (p)
@@ -497,7 +525,7 @@ def printApi():
   qtyvar = StringVar(apiwin)
   productvar = StringVar(apiwin)
   productvar.set(g_name)
-  lbl_sku = Label(apiwin, text="neto SKU:")
+  lbl_sku = Label(apiwin, text="SKU:")
   lbl_qty = Label(apiwin, text="Quantity to print:")
   entry_prod = Entry(apiwin, textvar=productvar,width=60, state='disabled')
   #entry_prod = Entry(apiwin, textvar=productvar,width=60)
@@ -529,7 +557,7 @@ def openPrinter(printer):
   #printer_name = printer
   if platform.system() == "Windows":	  
     p = win32print.OpenPrinter (printer)
-    job = win32print.StartDocPrinter (p, 1, ("Neto Product Labels", None, "RAW"))
+    job = win32print.StartDocPrinter (p, 1, ("Product Labels", None, "RAW"))
     win32print.StartPagePrinter (p)
   return p;
   
@@ -560,6 +588,8 @@ def getCSVname():
   global g_csvname
   root.csvname = tkinter.filedialog.askopenfilename(initialdir = ".",title = "Select file",filetypes = (("CSV files","*.csv"),("all files","*.*")))
   g_csvname = root.csvname
+  save_config()
+  print('g_csv = ', g_csvname)
 
 
 
@@ -570,7 +600,7 @@ def callback(sv):
 import configparser
 
 def save_config():
-  global g_printer, g_filename, g_apiurl, g_apikey, g_lpripaddr, g_lprport, g_uselpr, g_csvname
+  global g_printer, g_filename, g_apiurl, g_apikey, g_subkey, g_lpripaddr, g_lprport, g_uselpr, g_csvname
   print ('csv = ',g_csvname)
   config = configparser.ConfigParser()
   config['PRINTER'] = {
@@ -580,7 +610,8 @@ def save_config():
   }
   config['API'] = {
       'URL': g_apiurl if g_apiurl else '',
-      'KEY': g_apikey if g_apikey else ''
+      'KEY': g_apikey if g_apikey else '',
+      'SUBKEY': g_subkey if g_subkey else ''      
   }
   config['LPR'] = {
       'ipaddr': g_lpripaddr if g_lpripaddr else '',
@@ -662,6 +693,7 @@ def setup_window():
     lbl_fname = Label(window, textvariable=g_filename)
     lbl_url = Label(window, text="Enter API URL:")
     lbl_key = Label(window, text="Enter API Key:")
+    lbl_sub = Label(window, text="Enter Subscription Key:")    
     lbl_ipaddr = Label(window, text="Enter LPR IP Address:")
     lbl_port = Label(window, text="Enter LPR Port:")
     lbl_uselpr = Label(window, text="Use LPR:")
@@ -684,6 +716,7 @@ def setup_window():
     logging.debug("Initialized StringVars")
     tkvar.trace('w', lambda name, index, mode: callback_var(tkvar, 'g_printer', window))
     keyvar.trace('w', lambda name, index, mode: callback_var(keyvar, 'g_apikey', window))
+    keyvar.trace('w', lambda name, index, mode: callback_var(keyvar, 'g_subkey`', window))
     urlvar.trace('w', lambda name, index, mode: callback_var(urlvar, 'g_apiurl', window))
     filevar.trace('w', lambda name, index, mode: callback_var(filevar, 'g_filename', window))
     ipaddrvar.trace('w', lambda name, index, mode: callback_var(ipaddrvar, 'g_lpripaddr', window))
@@ -700,8 +733,9 @@ def setup_window():
       logging.debug("Using Entry widget for no printers or unsupported platform")
     btn_close = Button(window, text="Close", command=lambda: [save_config(), window.destroy()])
     entry_file = Entry(window, textvariable=filevar, width=50)
-    entry_url = Entry(window, textvariable=urlvar, width=50, show="*")
+    entry_url = Entry(window, textvariable=urlvar, width=50)
     entry_key = Entry(window, textvariable=keyvar, width=50, show="*")
+    entry_sub = Entry(window, textvariable=keyvar, width=50, show="*")
     entry_ipaddr = Entry(window, textvariable=ipaddrvar, width=20)
     entry_port = Entry(window, textvariable=portvar, width=10)
     entry_uselpr = Entry(window, textvariable=uselprvar, width=10)
@@ -716,14 +750,16 @@ def setup_window():
     entry_url.grid(row=2, column=1, sticky="w", padx=10, pady=5)
     lbl_key.grid(row=3, column=0, sticky="e", padx=10, pady=5)
     entry_key.grid(row=3, column=1, sticky="w", padx=10, pady=5)
-    lbl_ipaddr.grid(row=4, column=0, sticky="e", padx=10, pady=5)
-    entry_ipaddr.grid(row=4, column=1, sticky="w", padx=10, pady=5)
-    lbl_port.grid(row=5, column=0, sticky="e", padx=10, pady=5)
-    entry_port.grid(row=5, column=1, sticky="w", padx=10, pady=5)
-    lbl_uselpr.grid(row=6, column=0, sticky="e", padx=10, pady=5)
-    entry_uselpr.grid(row=6, column=1, sticky="w", padx=10, pady=5)
-    lbl_uselprhlp.grid(row=6, column=1, sticky="w", padx=(60, 10), pady=5)
-    btn_close.grid(row=7, column=0, columnspan=3, pady=15)
+    lbl_sub.grid(row=4, column=0, sticky="e", padx=10, pady=5)
+    entry_sub.grid(row=4, column=1, sticky="w", padx=10, pady=5)
+    lbl_ipaddr.grid(row=5, column=0, sticky="e", padx=10, pady=5)
+    entry_ipaddr.grid(row=5, column=1, sticky="w", padx=10, pady=5)
+    lbl_port.grid(row=6, column=0, sticky="e", padx=10, pady=5)
+    entry_port.grid(row=6, column=1, sticky="w", padx=10, pady=5)
+    lbl_uselpr.grid(row=7, column=0, sticky="e", padx=10, pady=5)
+    entry_uselpr.grid(row=7, column=1, sticky="w", padx=10, pady=5)
+    lbl_uselprhlp.grid(row=7, column=1, sticky="w", padx=(60, 10), pady=5)
+    btn_close.grid(row=8, column=0, columnspan=3, pady=15)
     logging.debug("Gridded all widgets")
     window.focus_force()  # Ensure window retains focus
     window.update()
@@ -759,6 +795,7 @@ toolbar = Frame(root,bg="blue")
 insertButton = Button(toolbar,text="Setup",command=setup_window)
 insertButton.pack(side = LEFT, padx=2, pady=2)
 csvButton = Button(toolbar,text="Choose CSV File",command=getCSVname)
+
 csvButton.pack(side = LEFT, padx=2, pady=2)
 printButton = Button(toolbar,text="Print CSV",command=printLabels)
 printButton.pack(side = LEFT, padx=2, pady=2)
