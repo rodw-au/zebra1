@@ -2,7 +2,8 @@ import os, sys
 import platform
 import ctypes
 from ctypes.wintypes import BYTE, DWORD, LPCWSTR
-import win32print
+if sys.platform == "win32":
+  import win32print
 import csv
 import configparser
 from configparser import ConfigParser
@@ -49,7 +50,7 @@ def clearglobals():
   global g_sku
   global g_name
   global g_warehouse
-  global g_barcode
+  global g_upc
   global g_shippingweight
   global g_shippingwidth
   global g_cubicweight
@@ -113,28 +114,8 @@ headers = {
     'Ocp-Apim-Subscription-Key':g_subkey
    }
 
-payload = """  <?xml version=\"1.0\" encoding=\"utf-8\"?>
-  <GetItem>
-    <Filter>
-      <SKU>[SKU]</SKU>
-      <OutputSelector>SKU</OutputSelector>
-      <OutputSelector>Name</OutputSelector>
-      <OutputSelector>DefaultPrice</OutputSelector>
-      <OutputSelector>ShippingLength</OutputSelector>
-      <OutputSelector>ShippingWidth</OutputSelector>
-      <OutputSelector>ShippingHeight</OutputSelector>
-      <OutputSelector>ShippingWeight</OutputSelector>
-      <OutputSelector>CubicWeight</OutputSelector>
-      <OutputSelector>UPC</OutputSelector>
-      <OutputSelector>WarehouseLocations</OutputSelector>
-      <OutputSelector>Misc10</OutputSelector>
-      
-    </Filter>
-  </GetItem>"""
   
-def parsexml(tpayload, sku):
-  #Not very pythonic using global variables but if we didn't, we'd have too many parameters to pass to procedures
-  #we have to tell Python we want touse the global variables, not local ones
+def parsejson(sku):
   global g_name
   global g_sku
   global g_shippingweight
@@ -144,7 +125,7 @@ def parsexml(tpayload, sku):
   global g_shippingheight
   global g_defaultprice
   global g_promotionprice
-  global g_barcode
+  global g_upc
   global g_apiurl
   global g_key
   global g_subkey
@@ -174,16 +155,17 @@ def parsexml(tpayload, sku):
   response = requests.request("GET", url2, headers=headers,data=payload2)
 
   print('Response = ',response,' , ',response.text, 'Reason = ',response.reason)
-  xmldoc = minidom.parseString(response.text)
-  itemlist = xmldoc.getElementsByTagName('Item')
-  for node in xmldoc.getElementsByTagName('Item'):  # visit every node <Item />
-    try:
-      name = node.getElementsByTagName('Name')[0]   # check the first element exists to confirm the SKU was found
-    except:
-      print ("SKU <%s>Not found, aborted"%(sku))
-      return
-      #sys.exit(1)                                   # Quit if SKU is not found in API
-    tsku           =  node.getElementsByTagName('SKU')[0]
+  data = response.json()
+  print(response.text)
+  g_sku= data['data']['products'][0]['sku']
+  g_name= data['data']['products'][0]['title']
+  g_upc= data['data']['products'][0]['barcode']
+  g_location = data['data']['products'][0]['bin_location']
+  print("sku = ", g_sku)
+  print("g_name = ", g_name)
+  print("g_upc = ", g_upc)
+  print("location = ", g_location)  
+'''
     shippingweight =  node.getElementsByTagName('weight')[0]
     shippingwidth  =  node.getElementsByTagName('width')[0]
     cubicweight    =  node.getElementsByTagName('weight')[0]
@@ -194,53 +176,7 @@ def parsexml(tpayload, sku):
     location      =  node.getElementsByTagName('bin_location')[0]
     #misc10         =  node.getElementsByTagName('Misc10')[0]
     #promotionprice =  node.getElementsByTagName('PromotionPrice')[0]
-    
-
-    g_sku = tsku.firstChild.data
-    g_name = title.firstChild.data
-    g_sku = sku.strip()
-    g_name = g_name.strip()
-    if(weight.firstChild):
-      g_shippingweight = weight.firstChild.data
-      g_shippingweight = g_shippingweight.strip()
-    else:
-      g_shippingweight='0.0'
-    if(width.firstChild):
-      g_shippingwidth = width.firstChild.data
-      g_shippingwidth = g_shippingwidth.strip()
-    else:
-      g_shippingwidth = '0.0'
-    if(length.firstChild):
-      g_shippinglength = length.firstChild.data
-      g_shippingwidth = g_shippingwidth.strip()
-    else:
-      g_shippinglength = '0.0'
-    if (height.firstChild):
-      g_shippingheight = height.firstChild.data
-      g_shippingheight = g_shippingheight.strip()
-    else:
-      g_shippinglength = '0.0'
-    if(price.firstChild):
-      g_defaultprice = str(price.firstChild.data)
-      g_defaultprice = defaultprice.strip()
-    else:
-      g_defaultprice = "0.00"
-    if (barcode.firstChild):
-      g_upc = barcode.firstChild.data
-      g_upc = g_barcode.strip()
-    else:
-      g_upc = ''
-    if (bin_location.firstChild):
-      g_location = bin_location.firstChild.data
-      g_location = g_bin_location.strip()
-    else:
-      g_location = ''
-      g_name
-
-print ('g_sku= ', g_sku)
-print ('g_name= ', g_name)
-#print ('g_barcode= ', g_barcode)
-#print ('g_location= ', g_location)
+'''    
 
 def readConfig():
   global g_zpl
@@ -485,15 +421,7 @@ def printApiLabels(sku,qty):
   global payload
   g_sku=sku.get()
   g_quantity=qty.get()
-  prod = g_sku
-  headers['NETOAPI_KEY'] = g_apikey
-  if(prod):
-    theXML = payload.replace('[SKU]', prod)
-    parsexml(theXML,prod)
-  else:
-    print ("ERRROR: No SKU")
-    tkMessageBox.showwarning("Warning","SKU not found")
-    return
+  parsejson(g_sku)
   lbl = FormatLabel(g_zpl, g_sku, g_name, g_misc10, g_upc, g_defaultprice, g_quantity, g_shippingweight, g_warehouse,g_location)
   print (lbl)
   printglobals()

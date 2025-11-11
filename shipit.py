@@ -16,5 +16,18 @@ headers = {
 }
 
 response = requests.request("GET", url, headers=headers, data=payload)
-
+data = response.json()
 print(response.text)
+print('---------- data ')
+print(data)
+print('---------- type')
+print(type(data))
+print('----------')
+sku= data['data']['products'][0]['sku']
+title= data['data']['products'][0]['title']
+upc= data['data']['products'][0]['barcode']
+location = data['data']['products'][0]['bin_location']
+print("sku = ", sku)
+print("title = ", title)
+print("barcode = ", upc)
+print("location = ", location)
