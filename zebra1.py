@@ -49,7 +49,7 @@ def clearglobals():
   global g_sku
   global g_name
   global g_warehouse
-  global g_upc
+  global g_barcode
   global g_shippingweight
   global g_shippingwidth
   global g_cubicweight
@@ -144,7 +144,7 @@ def parsexml(tpayload, sku):
   global g_shippingheight
   global g_defaultprice
   global g_promotionprice
-  global g_upc
+  global g_barcode
   global g_apiurl
   global g_key
   global g_subkey
@@ -158,20 +158,22 @@ def parsexml(tpayload, sku):
     'StarShipIT-Api-Key':g_apikey,
     'Ocp-Apim-Subscription-Key':g_subkey
   }
-  url = "https://api.starshipit.com/api/products"
+  #url = "https://api.starshipit.com/api/products"
+  url2 = "https://api.starshipit.com/api/products?search_term="+g_sku+"&page_number=1&page_size=50&skip_records=0&sort_column=Sku&sort_direction=Ascending"
   #payload={}
   print('Sku ' ,g_sku)
   print('g_url = ',g_apiurl)
   payload={'search_term':g_sku, 'page_number':1,'page_size':1,'skip_records':1, 'sort_column':'Sku','sort_direction':'Ascending'}
   #payload={''search_term'=}
   print("Payload = ", payload)
+  payload2 = {}
+ 
   print('headers = ',headers)
 
   #response = requests.request("GET", url, headers=headers, data=payload)
-  response = requests.request("GET", g_apiurl, headers=headers,data=payload)
+  response = requests.request("GET", url2, headers=headers,data=payload2)
 
   print('Response = ',response,' , ',response.text, 'Reason = ',response.reason)
-  exit()
   xmldoc = minidom.parseString(response.text)
   itemlist = xmldoc.getElementsByTagName('Item')
   for node in xmldoc.getElementsByTagName('Item'):  # visit every node <Item />
@@ -182,60 +184,63 @@ def parsexml(tpayload, sku):
       return
       #sys.exit(1)                                   # Quit if SKU is not found in API
     tsku           =  node.getElementsByTagName('SKU')[0]
-    shippingweight =  node.getElementsByTagName('ShippingWeight')[0]
-    shippingwidth  =  node.getElementsByTagName('ShippingWidth')[0]
-    cubicweight    =  node.getElementsByTagName('CubicWeight')[0]
-    shippinglength =  node.getElementsByTagName('ShippingLength')[0]
-    shippingheight =  node.getElementsByTagName('ShippingHeight')[0]
+    shippingweight =  node.getElementsByTagName('weight')[0]
+    shippingwidth  =  node.getElementsByTagName('width')[0]
+    cubicweight    =  node.getElementsByTagName('weight')[0]
+    shippinglength =  node.getElementsByTagName('length')[0]
+    shippingheight =  node.getElementsByTagName('height')[0]
     defaultprice   =  node.getElementsByTagName('DefaultPrice')[0]
     upc            =  node.getElementsByTagName('UPC')[0]
-    warehouse      =  node.getElementsByTagName('WarehouseLocations')[0]
-    misc10         =  node.getElementsByTagName('Misc10')[0]
+    location      =  node.getElementsByTagName('bin_location')[0]
+    #misc10         =  node.getElementsByTagName('Misc10')[0]
     #promotionprice =  node.getElementsByTagName('PromotionPrice')[0]
     
 
     g_sku = tsku.firstChild.data
-    g_name = name.firstChild.data
+    g_name = title.firstChild.data
     g_sku = sku.strip()
     g_name = g_name.strip()
-    if(shippingweight.firstChild):
-      g_shippingweight = shippingweight.firstChild.data
+    if(weight.firstChild):
+      g_shippingweight = weight.firstChild.data
       g_shippingweight = g_shippingweight.strip()
     else:
       g_shippingweight='0.0'
-    if(shippingwidth.firstChild):
-      g_shippingwidth = shippingwidth.firstChild.data
+    if(width.firstChild):
+      g_shippingwidth = width.firstChild.data
       g_shippingwidth = g_shippingwidth.strip()
     else:
       g_shippingwidth = '0.0'
-    if(shippinglength.firstChild):
-      g_shippinglength = shippinglength.firstChild.data
+    if(length.firstChild):
+      g_shippinglength = length.firstChild.data
       g_shippingwidth = g_shippingwidth.strip()
     else:
       g_shippinglength = '0.0'
-    if (shippingheight.firstChild):
-      g_shippingheight = shippingheight.firstChild.data
+    if (height.firstChild):
+      g_shippingheight = height.firstChild.data
       g_shippingheight = g_shippingheight.strip()
     else:
       g_shippinglength = '0.0'
-    if(defaultprice.firstChild):
-      g_defaultprice = str(defaultprice.firstChild.data)
-      #defaultprice = defaultprice.strip()
+    if(price.firstChild):
+      g_defaultprice = str(price.firstChild.data)
+      g_defaultprice = defaultprice.strip()
     else:
       g_defaultprice = "0.00"
-    if (upc.firstChild):
-      g_upc = upc.firstChild.data
-      g_upc = g_upc.strip()
+    if (barcode.firstChild):
+      g_upc = barcode.firstChild.data
+      g_upc = g_barcode.strip()
     else:
       g_upc = ''
-    if (warehouse.firstChild):
-      g_warehouse = warehouse.firstChild.data
-      g_warehouse = g_warehouse.strip()
+    if (bin_location.firstChild):
+      g_location = bin_location.firstChild.data
+      g_location = g_bin_location.strip()
     else:
-      g_warehoue = ''
-    #if (promotionprice.firstChild):
-    #  g_promotionprice = promotionprice.firstChild.data
+      g_location = ''
+      g_name
 
+print ('g_sku= ', g_sku)
+print ('g_name= ', g_name)
+#print ('g_barcode= ', g_barcode)
+#print ('g_location= ', g_location)
 
 def readConfig():
   global g_zpl
