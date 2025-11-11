@@ -82,6 +82,7 @@ def printglobals():
   global g_name
   global g_warehouse
   global g_upc
+  global g_location
   global g_shippingweight
   global g_shippingwidth
   global g_cubicweight
@@ -90,10 +91,11 @@ def printglobals():
   global g_defaultprice
   global g_promotionprice
   global g_misc10
-
+  print ('global data')
   print ("g_sku = ", g_sku.strip())
   print ("g_name = ", g_name.strip())
   print ("g_warehouse = ", g_warehouse.strip())
+  print ("g_location = ", g_location.strip())
   print ("g_upc = ", g_upc.strip())
   print ("g_shippingweight = ", g_shippingweight.strip())
   print ("g_shippingwidth = ",g_shippingwidth.strip())
@@ -351,12 +353,12 @@ def printCSV():
         return
       print("Success, CSV processed with no errors")
       islpr = int(g_uselpr)
-      #print("g_uselpr = ", g_uselpr, type(g_uselpr),"islpr = ", islpr, type(islpr))
-      if islpr:
-        #print("About to call printlprlabel()")
+      print("g_uselpr = ", g_uselpr, type(g_uselpr),"islpr = ", islpr, type(islpr))
+      if (islpr == 1):
+        print("About to call printlprlabel()")
         printlprlabel(label)
       else:
-        #print("About to call printlabel()")
+        print("About to call printlabel()")
         printlabel(label)
   except Exception as e:
     tkinter.messagebox.showerror("Error", f"Failed to process CSV: {e}", parent=root)
@@ -376,6 +378,7 @@ def FormatLabel(label, sku, name, misc10, upc, price, quantity, weight, warehous
 def printlabel(lblfmt):
   global g_printer
   global g_csv
+  print('Printlabel: arrived, printer = ',g_printer)
   printer_name = g_printer
   if platform.system() == "Windows":	
     print("About to print to ",printer_name)
@@ -418,6 +421,7 @@ def printApiLabels(sku,qty):
   global g_location
   global headers
   global g_apikey
+  global g_uselpr
   global payload
   g_sku=sku.get()
   g_quantity=qty.get()
@@ -425,9 +429,12 @@ def printApiLabels(sku,qty):
   lbl = FormatLabel(g_zpl, g_sku, g_name, g_misc10, g_upc, g_defaultprice, g_quantity, g_shippingweight, g_warehouse,g_location)
   print (lbl)
   printglobals()
-  if g_uselpr:
+  islpr = int(g_uselpr)
+  if (islpr == 1):
+    print('About to printlprlabel()')   
     printlprlabel(lbl)
   else:
+    print('About to printlabel()')  
     printlabel(lbl)
 
   print ("sku = " + g_sku)
@@ -480,11 +487,7 @@ def printLabels():
   global g_csvname
   if(len(g_csvname) > 0):
     printCSV()
-  
-  
-def doNothing():
-  printlabel(g_zpl)
-  
+
 def openPrinter(printer):
   #printer_name ="My printer name"
   #printer_name = printer
@@ -715,13 +718,11 @@ menu = Menu(root)
 root.config(menu=menu)
 subMenu= Menu(menu)
 menu.add_cascade(label = "File",menu=subMenu)
-#subMenu.add_command(label="New Project",command=doNothing)
 subMenu.add_command(label="Setup",command=setup_window)
 subMenu.add_separator()
 subMenu.add_command(label="Exit",command = on_closing)
 #editMenu = Menu(menu)
 #menu.add_cascade(label = "Edit", menu=editMenu)
-#editMenu.add_command(label="Redo", command = doNothing)
 
 # --- The Toolbar ----
 toolbar = Frame(root,bg="blue")
