@@ -126,7 +126,7 @@ class SelectionDialog:
         # Create the dialog window as self.dialog
         self.dialog = Toplevel(parent)
         self.dialog.title("Select a Product Record")
-        self.dialog.geometry("550x300") # Made wider for columns
+        self.dialog.geometry("550x350") # Made wider for columns
         self.dialog.transient(parent)
         self.dialog.grab_set()
 
@@ -229,11 +229,11 @@ def parsejson(sku):
     'Ocp-Apim-Subscription-Key':g_subkey
   }
   url = "https://api.starshipit.com/api/products?search_term="+g_sku+"&page_number=1&page_size=50&skip_records=0&sort_column=Sku&sort_direction=Ascending"
-  print('Sku ' ,g_sku)
-  print('g_url = ',g_apiurl)
+  #print('Sku ' ,g_sku)
+  #print('g_url = ',g_apiurl)
   payload = {}
   
-  print('headers = ',headers)
+  #print('headers = ',headers)
 
   try:
     response = requests.request("GET", url, headers=headers,data=payload)
@@ -249,14 +249,14 @@ def parsejson(sku):
     return
 
 
-  print('Response = ',response,' , ',response.text, 'Reason = ',response.reason)
+  #print('Response = ',response,' , ',response.text, 'Reason = ',response.reason)
   
   numrec = data.get('total_records', 0)
   products_list = data.get('data', {}).get('products', [])
   
   item_data_to_use = None # This will hold the single product we want to use
 
-  print(f'Total records found: {numrec}')
+  #print(f'Total records found: {numrec}')
   
   if (numrec == 0):
     tkinter.messagebox.showwarning("Not Found", f"No product found for SKU: {g_sku}")
@@ -275,8 +275,8 @@ def parsejson(sku):
       )
       product_data.append(new_row)
       
-    print('-------------------------------')
-    print("Multiple records found:", product_data)
+    #print('-------------------------------')
+    #print("Multiple records found:", product_data)
     
     # Call dialog and get the selection
     selected_record = open_selection_dialog(product_data)
@@ -313,14 +313,14 @@ def parsejson(sku):
   g_shippingwidth = item_data_to_use.get('width', '')
   g_shippinglength = item_data_to_use.get('length', '')
   g_defaultprice = item_data_to_use.get('price', '')
-  
+  '''
   print('--- Globals Set ---')
   print("sku = ", g_sku)
   print("g_name = ", g_name)
   print("g_upc = ", g_upc)
   print("location = ", g_location)  
   return(0) 
-
+  '''
 def readConfig():
   global g_zpl
   global g_filename
@@ -570,14 +570,14 @@ def printApiLabels(sku,qty):
   if(retval == 1):
     return
   lbl = FormatLabel(g_zpl, g_sku, g_name, g_misc10, g_upc, g_defaultprice, g_quantity, g_shippingweight, g_warehouse,g_location)
-  print (lbl)
+  #print (lbl)
   printglobals()
   islpr = int(g_uselpr)
   if (islpr == 1):
-    print('About to printlprlabel()')   
+    #print('About to printlprlabel()')   
     printlprlabel(lbl)
   else:
-    print('About to printlabel()')  
+    #print('About to printlabel()')  
     printlabel(lbl)
 
   print ("sku = " + g_sku)
@@ -590,7 +590,7 @@ def findFile(tkname):
   root.filename = tkinter.filedialog.askopenfilename(initialdir = ".",title = "Select file",filetypes = (("ZPL files","*.zpl"),("all files","*.*")))
   g_filename = root.filename
   tkname.set(g_filename)
-  print ("g_filename = ",g_filename)
+  #print ("g_filename = ",g_filename)
   try:
     file = open(g_filename,'r')
     g_zpl = file.read()
