@@ -158,11 +158,21 @@ def parsejson(sku):
 
   print('Response = ',response,' , ',response.text, 'Reason = ',response.reason)
   data = response.json()
-  print(response.text)
-  g_sku= data['data']['products'][0]['sku']
-  g_name= data['data']['products'][0]['title']
-  g_upc= data['data']['products'][0]['barcode']
-  g_location = data['data']['products'][0]['bin_location']
+  print(response.json)
+  numrec= data['total_records']
+  idx = 0
+  if (numrec > 1):
+    #loop looking for sku
+    for items in data['data']['products']:
+      print('sku = ',data['data']['products'][idx]['sku'])
+      if (data['data']['products'][idx]['sku'].lower() == g_sku.lower()):
+          break
+      idx = idx + 1
+  g_sku= data['data']['products'][idx]['sku']
+  g_name= data['data']['products'][idx]['title']
+  g_upc= data['data']['products'][idx]['barcode']
+  g_location = data['data']['products'][idx]['bin_location']
+  print('Number of records = ',numrec)
   print("sku = ", g_sku)
   print("g_name = ", g_name)
   print("g_upc = ", g_upc)
