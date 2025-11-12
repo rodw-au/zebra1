@@ -11,6 +11,7 @@ import requests
 import socket
 from xml.dom import minidom
 from tkinter import *
+from tkinter import ttk
 import tkinter.filedialog
 import tkinter.messagebox
 import logging
@@ -115,26 +116,112 @@ headers = {
     'StarShipIT-Api-Key':g_apiurl,
     'Ocp-Apim-Subscription-Key':g_subkey
    }
+class SelectionDialog:
 
+    def __init__(self, parent, records):
+        self.parent = parent
+        self.records = records
+        self.selected_record = None
+
+        # Create the dialog window as self.dialog
+        self.dialog = Toplevel(parent)
+        self.dialog.title("Select a Product Record")
+        self.dialog.geometry("550x300") # Made wider for columns
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+
+        # Use self.dialog as the parent
+        Label(self.dialog, text="Multiple products found. Please select one:").pack(pady=10)
+
+        columns = ("sku", "product_name", "barcode", "location")
+        # Treeview is in 'ttk', not base tkinter
+        self.tree = ttk.Treeview(self.dialog, columns=columns, show="headings", selectmode="browse")
+
+        self.tree.heading("sku", text="SKU")
+        self.tree.heading("product_name", text="Product Name")
+        self.tree.heading("barcode", text="Barcode")
+        self.tree.heading("location", text="Location")
+
+        self.tree.column("sku", width=100, anchor=CENTER)
+        self.tree.column("product_name", width=250)
+        self.tree.column("barcode", width=100, anchor=CENTER)
+        self.tree.column("location", width=80, anchor=CENTER)
+
+        for record in self.records:
+            self.tree.insert("", END, values=record) # Use END
+
+        self.tree.pack(fill=BOTH, expand=True, padx=10, pady=5) # Use BOTH
+
+        self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
+        self.tree.bind("<Double-1>", lambda event: self.on_ok())
+
+        # --- MODIFICATION START ---
+
+        # Use a Frame to hold the buttons
+        button_frame = Frame(self.dialog)
+        button_frame.pack(pady=10)
+
+        # OK Button
+        ok_button = Button(button_frame, text="OK", command=self.on_ok, width=15)
+        ok_button.pack(side=LEFT, padx=10)
+
+        # Cancel Button
+        cancel_button = Button(button_frame, text="Cancel", command=self.on_cancel, width=15)
+        cancel_button.pack(side=LEFT, padx=10)
+        
+        # Change window close 'X' button to cancel
+        self.dialog.protocol("WM_DELETE_WINDOW", self.on_cancel)
+
+        # --- MODIFICATION END ---
+        
+        # Focus on the first item
+        if self.records:
+            first_item = self.tree.get_children()[0]
+            self.tree.selection_set(first_item)
+            self.tree.focus(first_item)
+    def on_tree_select(self, event):
+        selected_item_id = self.tree.selection()
+        if selected_item_id:
+            self.selected_record = self.tree.item(selected_item_id[0], 'values')
+
+    def on_ok(self):
+        # If no selection, but an item is focused, select it
+        if not self.selected_record:
+            selected_item_id = self.tree.focus()
+            if selected_item_id:
+                self.selected_record = self.tree.item(selected_item_id, 'values')
+                
+        self.dialog.grab_release()
+        self.dialog.destroy()
+
+    def on_cancel(self):
+        self.selected_record = None  # Ensure we return nothing
+        self.dialog.grab_release()
+        self.dialog.destroy()
+        
+    def show(self):
+        self.parent.wait_window(self.dialog)
+        return self.selected_record
+        
+
+def open_selection_dialog(product_data):
+    global root # Needs root as the parent
+    
+    dialog = SelectionDialog(root, product_data)
+    selected_record = dialog.show() # This waits for the dialog to close
+
+    if selected_record:
+        result_text = f"Selected:\nSKU: {selected_record[0]}\nName: {selected_record[1]}\nBarcode: {selected_record[2]}\nLocation: {selected_record[3]}"	
+        print(f"Main window received: {selected_record}")
+    else:
+        result_text = "No selection made"
+        print("Main window received: No selection")
+    return selected_record
   
 def parsejson(sku):
-  global g_name
-  global g_sku
-  global g_shippingweight
-  global g_shippingwidth
-  global g_cubicweight
-  global g_shippinglength
-  global g_shippingheight
-  global g_defaultprice
-  global g_promotionprice
-  global g_upc
-  global g_apiurl
-  global g_key
-  global g_subkey
-  global g_warehouse
-  global g_misc10
-  global g_location
-  global g_quantity
+  global g_name, g_sku, g_shippingweight, g_shippingwidth, g_cubicweight
+  global g_shippinglength, g_shippingheight, g_defaultprice, g_promotionprice
+  global g_upc, g_apiurl, g_key, g_subkey, g_warehouse, g_misc10, g_location, g_quantity
 
   headers = {
     'Content-Type': 'application/json',
@@ -145,50 +232,94 @@ def parsejson(sku):
   print('Sku ' ,g_sku)
   print('g_url = ',g_apiurl)
   payload = {}
- 
+  
   print('headers = ',headers)
 
-  response = requests.request("GET", url, headers=headers,data=payload)
+  try:
+    response = requests.request("GET", url, headers=headers,data=payload)
+    response.raise_for_status() # Raise an error for bad responses (4xx, 5xx)
+    data = response.json()
+  except requests.exceptions.RequestException as e:
+    print(f"API request failed: {e}")
+    tkinter.messagebox.showerror("API Error", f"Failed to get product data: {e}")
+    return
+  except requests.exceptions.JSONDecodeError:
+    print(f"Failed to decode JSON: {response.text}")
+    tkinter.messagebox.showerror("API Error", f"Invalid response from server:\n{response.text}")
+    return
+
 
   print('Response = ',response,' , ',response.text, 'Reason = ',response.reason)
-  data = response.json()
-  print(response.json)
-  numrec= data['total_records']
-  if (numrec > 1):
-    #loop looking for sku
-    idx = 0
-    ctr = 0
-    product_data=[numrec]
-    for items in data['data']['products']:
-      # Create a new row using the 'items' variable
-      new_row = [
-      items['sku'],
-      items['title'],
-      items['barcode'],
-      items['bin_location']
-      ]
+  
+  numrec = data.get('total_records', 0)
+  products_list = data.get('data', {}).get('products', [])
+  
+  item_data_to_use = None # This will hold the single product we want to use
+
+  print(f'Total records found: {numrec}')
+  
+  if (numrec == 0):
+    tkinter.messagebox.showwarning("Not Found", f"No product found for SKU: {g_sku}")
+    return(0) # Exit the function
+    
+  elif (numrec > 1):
+    # Case 1: More than one record, open dialog
+    product_data = [] # Fix: Initialize as empty list
+    
+    for item in products_list:
+      new_row = ( # Use a tuple, it's safer
+        item.get('sku', ''),
+        item.get('title', ''),
+        item.get('barcode', ''),
+        item.get('bin_location', '')
+      )
       product_data.append(new_row)
-      if(data['data']['products'][ctr]['sku'].lower() == g_sku.lower()):
-		#matched sku  
-        idx = ctr 
-      ctr = ctr + 1
+      
     print('-------------------------------')
-    print(product_data)
-  else: 
-    idx = 0   
-  g_sku= data['data']['products'][idx]['sku']
-  g_name= data['data']['products'][idx]['title']
-  g_upc= data['data']['products'][idx]['barcode']
-  g_location = data['data']['products'][idx]['bin_location']
-  g_shippingweight = data['data']['products'][idx]['weight']
-  g_shippingwidth = data['data']['products'][idx]['width']
-  g_shippinglength = data['data']['products'][idx]['length']
-  g_defaultprice = data['data']['products'][idx]['price']  
-  print('Number of records = ',numrec)
+    print("Multiple records found:", product_data)
+    
+    # Call dialog and get the selection
+    selected_record = open_selection_dialog(product_data)
+    
+    if not selected_record:
+      tkinter.messagebox.showinfo("Cancelled", "No product was selected.")
+      return(1) # User cancelled, exit function
+      
+    # User selected a record, find the full data for it
+    selected_sku = selected_record[0] # Get SKU from the (sku, name, barcode, location) tuple
+    for item in products_list:
+      if item.get('sku') == selected_sku:
+        item_data_to_use = item
+        break
+        
+    if not item_data_to_use:
+      # This should be impossible if dialog worked, but good to check
+      tkinter.messagebox.showerror("Error", "Selected item could not be found in full data list.")
+      return(1)
+
+  else: # numrec == 1
+    # Case 2: Exactly one record
+    item_data_to_use = products_list[0]
+  
+  # --- Set Globals ---
+  # This code now runs ONLY after a single item has been determined
+  # (either from numrec=1 or from the dialog)
+  
+  g_sku = item_data_to_use.get('sku', '')
+  g_name = item_data_to_use.get('title', '')
+  g_upc = item_data_to_use.get('barcode', '')
+  g_location = item_data_to_use.get('bin_location', '')
+  g_shippingweight = item_data_to_use.get('weight', '')
+  g_shippingwidth = item_data_to_use.get('width', '')
+  g_shippinglength = item_data_to_use.get('length', '')
+  g_defaultprice = item_data_to_use.get('price', '')
+  
+  print('--- Globals Set ---')
   print("sku = ", g_sku)
   print("g_name = ", g_name)
   print("g_upc = ", g_upc)
-  print("location = ", g_location)      
+  print("location = ", g_location)  
+  return(0) 
 
 def readConfig():
   global g_zpl
@@ -435,7 +566,9 @@ def printApiLabels(sku,qty):
   global payload
   g_sku=sku.get()
   g_quantity=qty.get()
-  parsejson(g_sku)
+  retval = parsejson(g_sku)
+  if(retval == 1):
+    return
   lbl = FormatLabel(g_zpl, g_sku, g_name, g_misc10, g_upc, g_defaultprice, g_quantity, g_shippingweight, g_warehouse,g_location)
   print (lbl)
   printglobals()
