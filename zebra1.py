@@ -97,13 +97,13 @@ def printglobals():
   print ("g_warehouse = ", g_warehouse.strip())
   print ("g_location = ", g_location.strip())
   print ("g_upc = ", g_upc.strip())
-  print ("g_shippingweight = ", g_shippingweight.strip())
-  print ("g_shippingwidth = ",g_shippingwidth.strip())
-  print ("g_cubicweight = ", g_cubicweight.strip())
-  print ("g_shippinglength = ",g_shippinglength.strip())
-  print ("g_shippingheight = ", g_shippingheight.strip())
-  print ("g_defaultprice = ", g_defaultprice.strip())
-  print ("g_promotionprice = ", g_promotionprice.strip())
+  print ("g_shippingweight = ", g_shippingweight)
+  print ("g_shippingwidth = ",g_shippingwidth)
+  print ("g_cubicweight = ", g_cubicweight)
+  print ("g_shippinglength = ",g_shippinglength)
+  print ("g_shippingheight = ", g_shippingheight)
+  print ("g_defaultprice = ", g_defaultprice)
+  print ("g_promotionprice = ", g_promotionprice)
   print ("g_misc10 = ", g_misc10)
   
 def printable(input):
@@ -154,35 +154,41 @@ def parsejson(sku):
   data = response.json()
   print(response.json)
   numrec= data['total_records']
-  idx = 0
   if (numrec > 1):
     #loop looking for sku
+    idx = 0
+    ctr = 0
+    product_data=[numrec]
     for items in data['data']['products']:
-      print('sku = ',data['data']['products'][idx]['sku'])
-      if (data['data']['products'][idx]['sku'].lower() == g_sku.lower()):
-          break
-      idx = idx + 1
+      # Create a new row using the 'items' variable
+      new_row = [
+      items['sku'],
+      items['title'],
+      items['barcode'],
+      items['bin_location']
+      ]
+      product_data.append(new_row)
+      if(data['data']['products'][ctr]['sku'].lower() == g_sku.lower()):
+		#matched sku  
+        idx = ctr 
+      ctr = ctr + 1
+    print('-------------------------------')
+    print(product_data)
+  else: 
+    idx = 0   
   g_sku= data['data']['products'][idx]['sku']
   g_name= data['data']['products'][idx]['title']
   g_upc= data['data']['products'][idx]['barcode']
   g_location = data['data']['products'][idx]['bin_location']
+  g_shippingweight = data['data']['products'][idx]['weight']
+  g_shippingwidth = data['data']['products'][idx]['width']
+  g_shippinglength = data['data']['products'][idx]['length']
+  g_defaultprice = data['data']['products'][idx]['price']  
   print('Number of records = ',numrec)
   print("sku = ", g_sku)
   print("g_name = ", g_name)
   print("g_upc = ", g_upc)
-  print("location = ", g_location)  
-'''
-    shippingweight =  node.getElementsByTagName('weight')[0]
-    shippingwidth  =  node.getElementsByTagName('width')[0]
-    cubicweight    =  node.getElementsByTagName('weight')[0]
-    shippinglength =  node.getElementsByTagName('length')[0]
-    shippingheight =  node.getElementsByTagName('height')[0]
-    defaultprice   =  node.getElementsByTagName('DefaultPrice')[0]
-    upc            =  node.getElementsByTagName('UPC')[0]
-    location      =  node.getElementsByTagName('bin_location')[0]
-    #misc10         =  node.getElementsByTagName('Misc10')[0]
-    #promotionprice =  node.getElementsByTagName('PromotionPrice')[0]
-'''    
+  print("location = ", g_location)      
 
 def readConfig():
   global g_zpl
@@ -372,9 +378,9 @@ def FormatLabel(label, sku, name, misc10, upc, price, quantity, weight, warehous
   lbl2 = lbl1.replace('[NAME]',  printable(name))
   lbl3 = lbl2.replace('[MISC10]', printable(misc10))
   lbl4 = lbl3.replace('[UPC]',   printable(upc))
-  lbl5 = lbl4.replace('[PRICE]', printable(price))
+  lbl5 = lbl4.replace('[PRICE]', str(price))
   lbl6 = lbl5.replace('[QTY]',   printable(quantity))
-  lbl7 = lbl6.replace('[WEIGHT]', printable(weight))
+  lbl7 = lbl6.replace('[WEIGHT]', str(weight))
   lbl8 = lbl7.replace('[WAREHOUSE]', printable(warehouse))
   lbl9 = lbl8.replace('[LOCATION]', printable(location))
   return lbl9
