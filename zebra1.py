@@ -141,20 +141,14 @@ def parsejson(sku):
     'StarShipIT-Api-Key':g_apikey,
     'Ocp-Apim-Subscription-Key':g_subkey
   }
-  #url = "https://api.starshipit.com/api/products"
-  url2 = "https://api.starshipit.com/api/products?search_term="+g_sku+"&page_number=1&page_size=50&skip_records=0&sort_column=Sku&sort_direction=Ascending"
-  #payload={}
+  url = "https://api.starshipit.com/api/products?search_term="+g_sku+"&page_number=1&page_size=50&skip_records=0&sort_column=Sku&sort_direction=Ascending"
   print('Sku ' ,g_sku)
   print('g_url = ',g_apiurl)
-  payload={'search_term':g_sku, 'page_number':1,'page_size':1,'skip_records':1, 'sort_column':'Sku','sort_direction':'Ascending'}
-  #payload={''search_term'=}
-  print("Payload = ", payload)
-  payload2 = {}
+  payload = {}
  
   print('headers = ',headers)
 
-  #response = requests.request("GET", url, headers=headers, data=payload)
-  response = requests.request("GET", url2, headers=headers,data=payload2)
+  response = requests.request("GET", url, headers=headers,data=payload)
 
   print('Response = ',response,' , ',response.text, 'Reason = ',response.reason)
   data = response.json()
@@ -715,12 +709,12 @@ def setup_window():
     tkinter.messagebox.showerror("Error", f"Failed to create setup window: {e}", parent=root)
     
 root = Tk()
+root.title("Labels")
 try:
     readConfig()
 except Exception as e:
     tkinter.messagebox.showerror("Error", f"Failed to read config: {e}", parent=root)
-
-#printlabel(g_zpl)
+    
 filename = StringVar() 
 csvname = StringVar() 
 # --- Main Menu ---
@@ -731,8 +725,6 @@ menu.add_cascade(label = "File",menu=subMenu)
 subMenu.add_command(label="Setup",command=setup_window)
 subMenu.add_separator()
 subMenu.add_command(label="Exit",command = on_closing)
-#editMenu = Menu(menu)
-#menu.add_cascade(label = "Edit", menu=editMenu)
 
 # --- The Toolbar ----
 toolbar = Frame(root,bg="blue")
