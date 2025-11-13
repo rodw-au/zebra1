@@ -348,7 +348,7 @@ def readConfig():
   g_lpripaddr = config.get('LPR', 'ipaddr')
   g_lprport =  config.get('LPR', 'port') 
   g_uselpr = config.get('LPR', 'uselpr')
-  print('Zpl File = ',g_filename)
+  #print('Zpl File = ',g_filename)
   if g_filename:
     try:
       file = open(g_filename,"r")
@@ -360,10 +360,10 @@ def readConfig():
       tkinter.messagebox.showwarning("Warning",msg)
   else:
     tkinter.messagebox.showwarning("Warning","No Label format selected in Setup")
-  print('g_apiurl = ', g_apiurl)
-  print('g_key = ', g_apikey)
-  print('g_subkey = ', g_subkey)
-  print('g_csv = ', g_csvname)
+  #print('g_apiurl = ', g_apiurl)
+  #print('g_key = ', g_apikey)
+  #print('g_subkey = ', g_subkey)
+  #print('g_csv = ', g_csvname)
   
 def writeConfig():
   global g_zpl
