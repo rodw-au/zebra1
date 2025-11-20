@@ -1,2 +1,9 @@
 zebra1
-Python app to direct print to a Zebra ZPL printer
+Python app to direct print product labels to a Zebra or other ZPL compatible printer
+Windows and Linux printers are supported.
+It is also possible to print direct to a network connected ZPL printer bypassing printer drivers (my preferred method)
+Data is retrieved from Starshipit via the API. API Credentials are stored in the .ini file in clear text.
+
+.zpl files contain the ZPL formatted label to be printed. Various merge codes can be included in the template and are substituted from the API data.
+.csv files can be used to print a series of labels at one time. Normally this is used to print warehouse location labels. 
+     The CSV file is free form but the headings must use valid merge codes.
